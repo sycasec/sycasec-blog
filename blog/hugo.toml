@@ -1,3 +1,36 @@
-baseURL = 'https://example.org/'
+baseURL = 'https://sycasec.github.io/'
 languageCode = 'en-us'
-title = 'My New Hugo Site'
+title = 'CyberSec Blog'
+theme = 'rose-pine'
+paginate = 5
+
+[permalinks]
+  notes = "/note/:year:month:day"
+
+[markup.highlight]
+  style = "rose-pine"
+  lineNos = true
+  anchorLineNos = false
+  noClasses = false
+
+[[menu.header]]
+  name = "about"
+  url = "about"
+[[menu.header]]
+  name = "posts"
+  url = "posts"
+[[menu.header]]
+  name = "notes"
+  url = "notes"
+
+[params]
+  author = "Perez, Dy, del Castillo"
+  user = "hello,friend"
+  hostname = "cybersec-blog"
+
+[[params.social]]
+  name = "github"
+  url = "https://github.com/sycasec"
+[[params.social]]
+  name = "linkedin"
+  url = "https://www.linkedin.com/in/kyle-adrian-del-castillo-a438731a6/"
