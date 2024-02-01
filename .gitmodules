@@ -4,3 +4,11 @@
 [submodule "blog/themes/rose-pine"]
 	path = blog/themes/rose-pine
 	url = https://github.com/akopdev/hugo-theme-rose-pine
+[submodule "blog/sycasec"]
+	path = blog/sycasec
+	url = git@github.com:sycasec/sycasec.git
+	branch = main
+[submodule "blog/public"]
+	path = blog/public
+	url = git@github.com:sycasec/sycasec.git
+	branch = main
