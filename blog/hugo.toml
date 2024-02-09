@@ -1,4 +1,4 @@
-baseURL = 'https://sycasec.github.io/sycasec'
+baseURL = 'https://sycasec.github.io/'
 languageCode = 'en-us'
 title = 'CyberSec Blog'
 theme = 'rose-pine'
@@ -34,3 +34,12 @@ paginate = 5
 [[params.social]]
   name = "linkedin"
   url = "https://www.linkedin.com/in/kyle-adrian-del-castillo-a438731a6/"
+
+
+[[module.mounts]]
+source = 'static'
+target = 'static'
+
+[[module.mounts]]
+source = 'images'
+target = 'static/images'
