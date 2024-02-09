@@ -1,4 +1,4 @@
-baseURL = 'https://sycasec.github.io/'
+baseURL = 'https://sycasec.github.io/sycasec'
 languageCode = 'en-us'
 title = 'CyberSec Blog'
 theme = 'rose-pine'
