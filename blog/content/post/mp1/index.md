@@ -17,7 +17,7 @@ background_image = "/images/hackerman.jpg"
 - we find that it has the exact same codes in as the ones already in the `mp1.pdf`
 - we finally craft shell code
 	- `\x41 * 12` for padding
-	- `\xe8\xcd\xff\xff` redirecting our `eip`
+	- `\xf8\xcd\xff\xff` redirecting our `eip`
 	- `\x31\xc0\x40\x89\xc3\xcd\x80` exit one shell code
 - we analyze exactly what the machine code does because we’re not script kiddies
 - we try running `/bin/bash` with an `execve("/bin/bash")` shell code (ofc from shell-storm)
