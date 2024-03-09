@@ -23,7 +23,7 @@ An experiment was made to describe this, which goes along these lines:
         ┌────────────────────────────────────────────────────────────────────┐
         │           ┌──► M_0 ───┐           Alice                            │
         │           │           │    ┌──────────────────┐                    │
-        │ 1.   Eve ─┤           ├───►│  Encrypt 0 or 1  │                    │
+        │ 1.   Eve ─┤           ├──► │  Encrypt 0 or 1  │                    │
         │       ▲   │           │    └─────────┬────────┘                    │
         │       │   └──► M_1 ───┘              │                             │
         │       │                              │                             │
@@ -36,9 +36,9 @@ An experiment was made to describe this, which goes along these lines:
         │       └─────────────────── ciphertext ────────────────────┘        │
         │                                                                    │
         │                                                                    │
-        │             ┌───────────────────────────────────┐                    │
-        │ 3.   Eve ──►│Guess if M_ciphertext is M_0 or M_1│                    │
-        │             └───────────────────────────────────┘                    │
+        │              ┌─────────────────────────────────────┐               │
+        │ 3.   Eve ──► │ Guess if M_ciphertext is M_0 or M_1 │               │
+        │              └─────────────────────────────────────┘               │
         └────────────────────────────────────────────────────────────────────┘
                     Eve Guesses >  50% correctly: NOT IND-CPA SECURE           
                     Eve Guesses <= 50% correctly: IND-CPA SECURE               
@@ -98,9 +98,15 @@ But… how can we do this? How can we incorporate diffusion, randomness, and blo
 Luckily, the smart cryptography researchers have figured it out already! Looking at the other modes of block ciphers, we can see that they included a random variable, known as an *Initial Vector* or *Nonce*, in calculating the ciphertext. Different modes use this random variable differently, but the main thing is it is now part of the process. HOWEVER, one very important thing is that this random variable must not be reused. Every time a plaintext is encrypted, a different random variable should be used. Otherwise, it will be ECB all over again. 
 
 Another method to make the whole encryption process complicated is to chain the encryption of the blocks. In other words, use the already encrypted ciphertext block in encrypting the next blocks. This allows us to achieve both diffusion and block dependency. A single character change in the first few blocks of the plaintext will cascade down to the succeeding block, thus drastically changing the whole ciphertext. This chaining also prevents attackers from gleaning information on blocks with similar message since these would produce different ciphertexts.
-The modes that use these 3 methods are Cipher Block Chaining (CBC), Ciphertext Feedback (CFB), Output Feedback (OFB) and Counter. For this writeup, we’ll be considering CBC because it will teach us a valuable lesson later.
+The modes that use these 3 methods are: 
+- Cipher Block Chaining (CBC)
+- Ciphertext Feedback (CFB)
+- Output Feedback (OFB) and Counter.
+
+For this writeup, we’ll be considering CBC because it will teach us a valuable lesson later.
+
 ### Cipher Block Chaining
-Cipher block chaining works by using the Initial Vector (IV) and XORing it with the first block of the plaintext then encrypting its result with the block cipher encryption under a key to produce the first ciphertext block. This first block is then used to encrypt the second plaintext block which will then be used to encrypt the third block and so on. Although the IV is only used once, the resulting ciphertext changes every time similar plaintext message is encrypted. Moreover, since the previous ciphertext block is used to encrypt the next block, plaintext blocks with similar message will produce different ciphertexts, thus preventing attackers from just comparing blocks to glean information on the original plaintext message. 
+Cipher block chaining works by using the `Initial Vector` (`IV`) and `XOR`ing it with the first block of the plaintext then encrypting its result with the block cipher encryption under a key to produce the first ciphertext block. This first block is then used to encrypt the second plaintext block which will then be used to encrypt the third block and so on. Although the IV is only used once, the resulting ciphertext changes every time similar plaintext message is encrypted. Moreover, since the previous ciphertext block is used to encrypt the next block, plaintext blocks with similar message will produce different ciphertexts, thus preventing attackers from just comparing blocks to glean information on the original plaintext message. 
 #### Let’s play a game
 The IND-CPA security of CBC is already [mathematically proven](https://www.cs.ucdavis.edu/~rogaway/papers/sym-enc.pdf). But comprehending it requires a PhD so we’ll have to use the IND-CPA game instead for us, undergraduates, to understand.
 1. Eve sends two message to Alice, say `cat` and `dog`
@@ -117,11 +123,12 @@ Currently, CBC is known to be [vulnerable to a padding oracle attack](https://le
 
 Padding oracle attack is not as simple as our IND-CPA game so we’ll need to simplify it for our 2 remaining braincells to comprehend.
 
-First, what is a padding oracle? It’s simply a part of the crypto system that checks the padding of the decrypted plaintext. We have already learned that padding is added to plaintexts to account for the differences in its length, so this concept is not new to us.
+#### What is a padding oracle?
+It’s simply a part of the crypto system that checks the padding of the decrypted plaintext. We have already learned that padding is added to plaintexts to account for the differences in its length, so this concept is not new to us.
 
 This attack works by exploiting the fact that a server will either return an error or will quickly return a message when the decrypted plaintext has incorrect padding. In contrast, when the server does decrypt a plaintext with a valid padding, it will take some time to send it since the plaintext will be processed by the server.
 
-*So what? The attacker still doesn’t have the key so the secret remains to be secret, right?*  Well… the attacker still knows the IV and has access to it since it is attached to the beginning of the ciphertext.
+*So what? The attacker still doesn’t have the key so the secret remains to be secret, right?*  Well… the attacker still knows the `IV` and has access to it since it is attached to the beginning of the ciphertext.
 
 The attacker can modify the IV, passes it to the server where the ciphertext is decrypted and, with some Maths magic, eventually reveal the original plaintext. This is just a hand-wavey explanation since it is beyond the scope of this writeup, but a very important lesson we can learn from this is that any, and just ANY, information that an attacker can modify or glean information about the plaintext or the decryption pipeline can be used to subvert the system. Attackers are clever ~~turds~~ people that can take advantage of a system. 
 ## Summary
@@ -135,3 +142,4 @@ The known vulnerabilities of CBC speaks of the core of cybersecurity: no functio
 - Bellare, M., Desai, A., Jokipii, E., & Rogaway, P. (1997, October). A concrete security treatment of symmetric encryption. In _Proceedings 38th Annual Symposium on Foundations of Computer Science_ (pp. 394-403). IEEE
 - blowdart. (2022, September 8). _CBC decryption vulnerability - .NET_. Microsoft.com. https://learn.microsoft.com/en-us/dotnet/standard/security/vulnerabilities-cbc-mode
 - Sohl, E. (2021, February 17). _Cryptopals: Exploiting CBC Padding Oracles_. NCC Group Research Blog. https://research.nccgroup.com/2021/02/17/cryptopals-exploiting-cbc-padding-oracles/
+- Symmetric-key cryptography. Computer Security. (n.d.). https://textbook.cs161.org/crypto/symmetric.html 
