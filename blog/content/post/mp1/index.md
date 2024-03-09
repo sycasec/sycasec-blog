@@ -6,21 +6,17 @@ background_image = "/images/hackerman.jpg"
 +++
 
 
-## TL;DR
-- `eip` upon entering `vuln()` is `0x56556183`
+# I ain't readin allat:
 - we break at `0x56556191` (`ret` from `vuln`) to observe behavior of `eip`
-- following the suggested information-giving commands in `gdb`, we get the desirable `esp` in vuln being `0xffffcde8`
-	- we confirm this by defining `hook-stop` with `x/1i $eip` and `x/16wx $esp` which allows us to view the current instruction and the next 16 words in the stack every time execution is stopped
+- following the suggested information-giving commands in `gdb`, we get the desirable `esp` in vuln being `0xffffcdf8`
 - we try to craft the shell code
 - compiling the given `asm` with necessary incantations fails
 - we look for an exit one shell code in shell-storm
-- we find that it has the exact same codes in as the ones already in the `mp1.pdf`
-- we finally craft shell code
+- we analyze shell code
 	- `\x90 * 12` for padding
 	- `\xf8\xcd\xff\xff` redirecting our `eip`
 	- `\x31\xc0\x40\x89\xc3\xcd\x80` exit one shell code
-- we analyze exactly what the machine code does because we’re not script kiddies
-- we try running `/bin/bash` with an `execve("/bin/bash")` shell code (ofc from shell-storm)
+- we also try inserting an `execve("/bin/bash")` shell code (ofc from shell-storm)
 - \$\$\$ profit
 
 exit one shell code full:
@@ -39,14 +35,18 @@ with open("payload", "wb") as f:
 	f.write(payload)
 ```
 
-## Know thy enemy
+However we also try a different method of inserting the shell code, as described further down below.
+
+And with that,
+
+# Know thy enemy
 
 Let's first take a look at the instructions for `main` and `vuln`:
 
 {{< figure src="main.png" title="main.png" width="400" class="centered" >}}
 {{< figure src="vuln.png" title="vuln.png" width="400" class="centered" >}}
 
-Then, we define `hook-stop` to allow us to view the next 1 instruction on the `eip`, and 16 words starting from the `esp` register.
+Then, we define `hook-stop` to allow us to view the next 1 instruction on the `eip`, and 16 words starting from the `esp` register. This is gonna give us an upside-down view of the stack starting from the `$esp` register. This is beneficial to us since the `$esp` is pointed to the very bottom of the current stack frame, allowing us to see the contents of the current frame being executed.
 
 ```bash
 (gdb) define hook-stop
@@ -54,10 +54,24 @@ Then, we define `hook-stop` to allow us to view the next 1 instruction on the `e
 >x/16wx $esp
 end
 ```
+I hope this is a helpful visual of what we're doing:
+
+```
+                              ---------------------------  ╮
+          0xdeadbeef / $esp:  {0x..}   0x..   0x..   0x..  │
+                              ---------------------------  │
+                                         stuff             ├─ stack (x/16wx $esp) 16 words from esp
+                              ---------------------------  │
+                                         stuff             │
+                              ---------------------------  ╯
+```
+
 We can see main allocating its own stack frame in the next instruction, by moving `ebp` to `esp`
 
 {{< figure src="main-alloc.png" width="600" class="centered" >}}
+
 we can confirm this by getting information on the stack frame with `info frame`
+
 {{< figure src="info-frame.png" width="500" class="centered" >}}
 
 As we saw in `dissassemble main` above, the next instruction is to `call <vuln>`. Let's single step and and view our registers to confirm that main’s stack frame is indeed in `0xffffcdf8`:
@@ -69,19 +83,22 @@ Both `esp` and `ebp` at this point are at `0xffffcdf8` because main isn’t allo
 
 {{< figure src="stack-anl.png" width="600">}}
 
-Lets analyze it a bit:
+Lets analyze it a bit *(edited for clarity):
 
-1. - `0x56556195 <main+3>:	call   0x5655617d <vuln>`
-- stores return address in 1, which is at the address `0xffffcdf5->0xffffcdf8`
+1.  `0x56556195 <main+3>:    call   0x5655-617d <vuln>`
+    - stores return address in 1, which is at the address `0xffffcdf5->0xffffcdf8`
+    - *this is the `rip` or where the `eip` will jump to after executing all of `vuln`'s instructions. 
 
-2. - `0x5655617d <vuln>:	push   %ebp`
-- pushes the previous `ebp`
-- the next 5 instructions (`x/5i $eip`) shows us:
-	- move ebp into current esp (creating a new stack frame for `vuln()`)
-	- decrement esp by 8 bytes
-	- allocate address for `buffer[8]
-	- push `buffer[8]` address into stack
-	- call `gets()` function
+2.  `0x5655617d <vuln>:    push   %ebp`
+    - pushes the previous `ebp`
+    - *you guessed it, this is the `sfp` or the previous `ebp` (in this case, it's `main`'s `ebp)
+
+*The next 5 instructions (`x/5i $eip`) shows us:
+- `mov    %esp,%ebp`      :  →  move ebp into current esp (creating a new stack frame for `vuln()`)
+- `sub    $0x8,%esp`      :  →  decrement esp by 8 bytes
+- `lea    -0x8(%ebp),%eax`:  →  allocate address for `buffer[8]`
+- `push   %eax`           :  →  push `buffer[8]` address into stack
+- `call 0xf7c741b0`       :  →  call `<_IO_gets>` (`gets()`) subroutine  
 
 We can confirm these are exactly what the program is going to do by checking registers now:
 
@@ -91,7 +108,7 @@ We move a single step and review the registers:
 
 {{< figure src="info-reg-2.png" width="550">}}
 
-As you can most likely see (i hope so), the `esp` and `ebp` are now the same. Let's push on while keeping a close eye at the stack:
+The `esp` and `ebp` are now the same because of the `mov %esp,%ebp` instruction. Remember that the instruction shown by the command `x/1i $eip` in `gdb` is the **next** instruction, not the current one executed. Anyway, let's push on while keeping a close eye at the stack:
 
 {{< figure src="lea.png" width="650">}}
 
@@ -107,11 +124,11 @@ We can see that:
 
 {{< figure src="main.png" width="400">}}
 
-## What do we do now?
+# What do we do now?
 
 First, lets grab our shell code:
 
-### Ghost in the (egg) Shell
+## Ghost in the (egg) Shell
 
 The provided asm doesnt really compile on my end, even with the provided incantation 
 
@@ -181,9 +198,9 @@ We don’t really know what this does or why this works, all we know is that it 
 
 Now I can tell you that I *know* what exactly it is doing given these commands, but I can’t really explain why. I looked through the [intel developer’s manual](https://cdrdv2-public.intel.com/671110/325383-sdm-vol-2abcd.pdf) but I can’t really find an explanation as to why setting `eax = 1` results in the `syscall exit`, or why it looks at `ebx` to provide the exit code, or why `cd 80 (int $0x80)` results in an interrupt. So for now let’s just press the **i believe** button on this and press on.
 
-### `rip` and tear
+## `rip` and tear
 
-The call to `gets()` in the next instruction allows us to write into the start of buffer, `0xffffcdf8` and beyond. 
+The call to `gets()` in the next instruction allows us to write into the start of buffer, `0xffffcde8` and beyond. 
 
 {{< figure src="annotated.png" width="550">}}
 
@@ -208,7 +225,7 @@ From here, we can proceed in two ways:
 
 Because we can, lets do both!
 
-#### Snipe method
+### Snipe method
 
 Let’s outline the steps of our creating the snipe shell code:
 - insert `exit 01` shell code (`\x31\xc0\x40\x89\xc3\xcd\x80`) into the `buffer`
@@ -271,7 +288,7 @@ Hell yeah. Let’s continue execution with `c` and look at the glorious exit cod
 
 and just like that, snipe method worked just fine.
 
-#### Matrix method
+### Matrix method
 To recap:
 
 {{< figure src="arrow.png" width="550">}}
@@ -334,7 +351,7 @@ And that’s that. Lets continue and get our sweet sweet `exited with code 01`
 Now that we have a reliable way to insert longer shell code, lets try `execve("/bin/bash")`
 
 ## Beyond the matrix
-This is just for fun, we grab [shell code from shell-storm](https://shell-storm.org/shellcode/files/shellcode-811.html) that executes `execve("/bin/bash") 
+This is just for fun, we grab [shell code from shell-storm](https://shell-storm.org/shellcode/files/shellcode-811.html) that executes `execve("/bin/bash")`
 
 
 ```c
@@ -442,4 +459,12 @@ That’s our `execve` shell code! Anyway, lets continue from here:
 We can see that its executing `/usr/bin/bash`, because `/bin/bash` is just a `symlink`. Anyway, now we have what they call arbitrary code execution – sort of. I can’t really get this to run in the terminal, even when I disable Address space layout randomization (_ASLR_) for `vuln`. I suspect it might have something to do with having a different memory address as compared to running it in `gdb`, but that’s already outside the scope of this machine problem, so I believe that’s the end of this writeup.
 
 
-#### それでわ、 じゃあ！
+### それでわ、 じゃあね！
+
+#### Changelog
+- 2024-02-17T04:00:00+08:00 - first full writeup upload
+- 2024-02-22T20:20:00+08:00 - full rewrite
+- 2024-02-24T12:00:00+08:00 - minor edits to first section and second sections for clarity
+
+#### Notes
+- I haven't gotten around to adding a "*last modified*" tag yet, it should be simple to add, since we already have a "*date created*" tag.
