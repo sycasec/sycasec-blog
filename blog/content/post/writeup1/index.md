@@ -27,7 +27,7 @@ An experiment was made to describe this, which goes along these lines:
         │       ▲   │           │    └─────────┬────────┘                    │
         │       │   └──► M_1 ───┘              │                             │
         │       │                              │                             │
-        │       └───────── ciphertext ─────────┘                             │
+        │       └──────── M_ciphertext ────────┘                             │
         │                                                         Alice      │
         │                                                     ┌───────────┐  │
         │      Eve  ─────────────► Any message ─────────────► │ Encrypt M │  │
@@ -36,9 +36,9 @@ An experiment was made to describe this, which goes along these lines:
         │       └─────────────────── ciphertext ────────────────────┘        │
         │                                                                    │
         │                                                                    │
-        │             ┌─────────────────────────────────┐                    │
-        │ 3.   Eve ──►│Guess if ciphertext is M_0 or M_1│                    │
-        │             └─────────────────────────────────┘                    │
+        │             ┌───────────────────────────────────┐                    │
+        │ 3.   Eve ──►│Guess if M_ciphertext is M_0 or M_1│                    │
+        │             └───────────────────────────────────┘                    │
         └────────────────────────────────────────────────────────────────────┘
                     Eve Guesses >  50% correctly: NOT IND-CPA SECURE           
                     Eve Guesses <= 50% correctly: IND-CPA SECURE               
