@@ -1,0 +1,8 @@
+<figure style="text-align: center;">
+    {{ with .Get "src" }}
+    <img src="{{ . }}" alt="{{ $.Get "alt" }}" style="max-width: 100%; height: auto;">
+    {{ end }}
+    {{ with .Get "caption" }}
+    <figcaption>{{ . }}</figcaption>
+    {{ end }}
+</figure>

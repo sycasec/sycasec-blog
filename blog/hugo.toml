@@ -24,7 +24,7 @@ paginate = 5
   url = "notes"
 
 [params]
-  author = "Perez, Dy, del Castillo"
+  author = "del Castillo, Dy, Perez"
   user = "hello,friend"
   hostname = "cybersec-blog"
 

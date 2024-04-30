@@ -3,6 +3,7 @@ title = 'Writeup0'
 date = 2024-02-09T23:17:32+08:00
 draft = false 
 background_image = "/images/hackerman.jpg"
+authors = ["It's Ya boi sycasec"]
 +++
 
 {{< youtube Qe73tRTksf0 >}}

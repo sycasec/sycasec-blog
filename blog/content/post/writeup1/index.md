@@ -2,6 +2,7 @@
 title = 'Writeup1'
 date = 2024-03-09T20:31:16+08:00
 draft = false 
+authors = ["Gil Brian Perez", "Alwyn Dy", "Kyle del Castillo"]
 +++
 ---
 # IND-CPA

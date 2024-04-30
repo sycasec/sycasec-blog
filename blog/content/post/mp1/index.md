@@ -3,6 +3,7 @@ title = 'Machine Problem 1'
 date = 2024-02-22T20:20:00+08:00
 draft = false
 background_image = "/images/hackerman.jpg"
+authors = ["Some people call me sycasec"]
 +++
 
 
