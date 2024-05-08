@@ -121,6 +121,9 @@ Literally `?` or parameterization saves us from `SQL` injection, like so:
 res = cur.execute("SELECT username FROM users INNER JOIN sessions ON "
                   + "users.id = sessions.user WHERE sessions.token = ?",
                   [request.cookies.get("session_token")])
+...
+# parameterized username and password
+res = cur.execute("SELECT id from users WHERE username = ? AND password = ?", [request.form["username"], request.form["password"]])
 ```
 
 We apply this to every SQL query made. The fully patched code is located [here](https://github.com/sycasec/mp3-vuln-app)
@@ -174,7 +177,6 @@ and of course we check for the CSRF token when a `POST` request is made to the `
 
 ```python
 @app.route("/posts", methods=["POST"])
-@limiter.limit("2/second")
 def posts():
     cur = con.cursor()
     if request.cookies.get("session_token") and 
@@ -186,12 +188,41 @@ We didn't really change much of the code in the app after this, so a valid POST 
 
 <!-- TODO: Add a picture showing this! -->
 
-### You are blocked!!
-To make this MP more ~~complicated~~ interesting, we can add a simple rate limiter on the number of login attempts a user can do. This increases the security of our web app by preventing attackers from brute forcing the login page.
+## What else can we do
+Alright, we fixed the major security flaws. But to make this MP more ~~complicated~~ interesting, we can also implement a simple rate limiter to prevent brute force attacks. 
 
-For the sake of not reinventing the wheel, we will use the Flask Limiter extension. The simplest setup (yoinked from the [documentation](https://flask-limiter.readthedocs.io/en/stable/)) is enough for this MP. The limits `1/second`, `10/hour`,  and `100/day` are used in the login page to demonstrate the defense-in-depth principle. We will also add a `2/second` rate limiter to the `posts` API for funsies.
+For the sake of not rewheeling the invention, we can just install the Flask Limiter extension. The simplest setup (yoinked from the [documentation](https://flask-limiter.readthedocs.io/en/stable/)) is enough for this MP. 
 
-When a user (potentially an attacker) exceeds this limit, they will get the following errors and won’t be able to make requests until some time has passed.
+We setup the limiter like this 
+
+```python
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
+)
+```
+
+We can now limit the access to our endpoints.
+
+For the `login` endpoint, we can use multiple rate limits for funsies.
+
+```python
+@limiter.limit("1/second")
+@limiter.limit("10/hour")
+@limiter.limit("100/day")
+def login():
+    ...
+```
+
+For the `posts` endpoint, we can do something like this
+```python
+@limiter.limit("2/second")
+def posts():
+    ...
+```
+
+When a user reaches the rate limit, they will get these errors and won’t be able to make requests until some time has passed.
 
 {{< figure src="MP3 writeup-20240501070954452.webp" alt="rate limit error" >}}
 
@@ -199,13 +230,30 @@ When a user (potentially an attacker) exceeds this limit, they will get the foll
 
 {{< figure src="MP3 writeup-20240501071136899.webp" alt="rate limit error" >}}
 
-To determine whether this security measure is actually working, we need to test it with other devices. Unfortunately, using `flask run` won’t allow other devices to connect to our server, even if we expose port 5000 in our Firewall. Although this is [not recommended](https://flask.palletsprojects.com/en/3.0.x/quickstart/#public-server), we can just simply run flask with `flask run --host=0.0.0.0` while still exposing port 5000 in our Firewall. With this, we can now test it with other devices.
+To make this even more interesting, we can check if this actually works using other devices. Unfortunately, using `flask run` won’t allow other devices to connect to our server, even if we expose port 5000 in our Firewall. Although this is [not recommended](https://flask.palletsprojects.com/en/3.0.x/quickstart/#public-server), we can just simply run flask with `flask run --host=0.0.0.0` while still exposing port 5000 in our Firewall. 
+
+I'm using my phone to test this.
 
 {{< figure src="MP3 writeup-20240501071434864.webp" alt="rate limit error" >}}
-# Conclusion
-*edit or add lang sad diri*
-Notice that much of the exploits stem from not sanitizing user inputs. Although this is Web Security 101, popular platforms can still fail to implement this. For example, the infamous self-retweeting tweet in 2014 that exploited this vulnerability of TweetDeck using an XSS attack. 
+
+## Emploice Muswashans
+
+{{< figure src="emploice.png" alt="emploice" >}}
+
+So what have we learned? 
+
+We learned to clean our inputs. And, well, use CSRF tokens. 
+
+Most of the fixes are just sanitization with extra steps.
+
+Don't be like 2014 TweetDeck that forgot to do this. 
 
 {{< youtube zv0kZKC6GAM>}}
 
-This cautionary tale teaches us that, although these attacks are almost as old as the internet and the defenses against them have been an industry-standard for a long time, we still need to keep in mind that these vulnerabilities can be introduced into our applications, whether by sheer incompetence or malevolence. Thus, testing the systems we build for these vulnerabilities is an essential and unskippable step in ensuring its reliability and security,
+Or that one University portal that still doesn't do this (yes, we're all looking at you). 
+
+Or that other University that just got their employees' salaries leaked.
+
+{{< figure src="ctu_leaked.png" alt="CTU leak" >}}
+
+
