@@ -4,15 +4,21 @@ date = 2024-04-30T13:41:19+08:00
 draft = false 
 authors = ["Joe Mama"]
 +++
+
 ---
+
 # Web Application Vulnerabilities
+
 ## TL;DR
+
 Attacks:
+
 - SQL Injection (login, sesion token)
 - Stored XSS attack
 - CSRF Attack (form)
 
 Fixes:
+
 - Query Parameterization
 - Sanitization (replace '<':'&lt', '>':'&gt')
 - CSRF Token
@@ -21,15 +27,18 @@ Fixes:
 [click me for repo link to patched-app](https://github.com/sycasec/mp3-vuln-app)
 
 ## Attacks
+
 ### Just the tip (basic login SQL injection)
+
 After starting up the service, we are greeted with a simple login page.
-One look at this login page and you can tell that this website’s TOTALLY *asking for it*.
-Look at that sweet login form. It needs to be broken in with some *Big Bad Code* (injection). So lets put **just the tip** in first:
+One look at this login page and you can tell that this website’s TOTALLY _asking for it_.
+Look at that sweet login form. It needs to be broken in with some _Big Bad Code_ (injection). So lets put **just the tip** in first:
+
 ```SQL
 'OR 1=1--
 ```
 
-Recalling our `SQL Injection` lecture that for vulnerable websites that naively fetch a single user using direct-input query, we can force a login by making the query return *at least one* entry.
+Recalling our `SQL Injection` lecture that for vulnerable websites that naively fetch a single user using direct-input query, we can force a login by making the query return _at least one_ entry.
 
 {{< figure src="init.png" alt="starting point" >}}
 
@@ -40,10 +49,13 @@ We click login:
 Now that we're here, lets do a little bit of trolling.
 
 ### XSS Attack!
+
 We can try a nifty little exploit to test if our inputs are being sanitized:
 
 ```html
-<script>alert("XSS attack!")</script>
+<script>
+  alert("XSS attack!");
+</script>
 ```
 
 We hit post, and:
@@ -53,7 +65,7 @@ We hit post, and:
 We can also do something a little more evil, like
 
 ```html
-<img src="/logout"/>
+<img src="/logout" />
 ```
 
 which effectively sends a valid `GET` request to the logout endpoint. After clicking post:
@@ -63,6 +75,7 @@ which effectively sends a valid `GET` request to the logout endpoint. After clic
 Immediately getting kicked out of the site is kind of annoying though, and we dont really have any way of deleting posts, so lets just wipe those from the database directly.
 
 ### CSRF Attack!
+
 We also can do a little bit of trolling from the outside, like a CSRF attack, like so:
 
 ```html
@@ -113,7 +126,9 @@ We reload this to send the cookie, and just like that:
 {{< figure src="session_token_login.png" alt="session token login" >}}
 
 ## Fixes
+
 ### ????????????
+
 Literally `?` or parameterization saves us from `SQL` injection, like so:
 
 ```python
@@ -129,6 +144,7 @@ res = cur.execute("SELECT id from users WHERE username = ? AND password = ?", [r
 We apply this to every SQL query made. The fully patched code is located [here](https://github.com/sycasec/mp3-vuln-app)
 
 ### Bleach
+
 Literally just swap out croccy symbols. We use a helper function `sanitize` like so:
 
 ```python
@@ -141,10 +157,13 @@ if user:
                 [sanitize(request.form["message"]), str(user[0])])
     con.commit()
 ```
-<!-- TODO: Add a picture showing this! -->
+
+{{< figure src="sanitize.gif" alt="csrf attack blocked" >}}
 
 ### Not today sir, CSRF only
+
 We can simply implement a CSRF Token to disable these kinds of attacks like so:
+
 ```python
 # /home route code goes here....
 user = res.fetchone()
@@ -164,13 +183,13 @@ Following the advise of our wise elders, we generate a CSRF token everytime our 
 
 ```html
 <h2>Welcome, {{username}}!</h2>
-      <a href="/logout">Logout</a>
-  <h3>Posts</h3>
-  <form method="post" action="/posts">
-    <input type="text" name="message" />
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-    <input type="submit" value="Post!" />
-  </form>
+<a href="/logout">Logout</a>
+<h3>Posts</h3>
+<form method="post" action="/posts">
+  <input type="text" name="message" />
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <input type="submit" value="Post!" />
+</form>
 ```
 
 and of course we check for the CSRF token when a `POST` request is made to the `/posts` route:
@@ -179,21 +198,22 @@ and of course we check for the CSRF token when a `POST` request is made to the `
 @app.route("/posts", methods=["POST"])
 def posts():
     cur = con.cursor()
-    if request.cookies.get("session_token") and 
+    if request.cookies.get("session_token") and
         request.form.get("csrf_token") == request.cookies.get("csrf_token"):
     # the rest of the /post route code goes here...
 ```
 
 We didn't really change much of the code in the app after this, so a valid POST request is made resulting in a `302 FOUND` response, but it doesn't get past the `csrf_token` check so nothing is done beyond that.
 
-<!-- TODO: Add a picture showing this! -->
+{{< figure src="csrf_block.gif" alt="csrf attack blocked" >}}
 
 ## What else can we do
-Alright, we fixed the major security flaws. But to make this MP more ~~complicated~~ interesting, we can also implement a simple rate limiter to prevent brute force attacks. 
 
-For the sake of not rewheeling the invention, we can just install the Flask Limiter extension. The simplest setup (yoinked from the [documentation](https://flask-limiter.readthedocs.io/en/stable/)) is enough for this MP. 
+Alright, we fixed the major security flaws. But to make this MP more ~~complicated~~ interesting, we can also implement a simple rate limiter to prevent brute force attacks.
 
-We setup the limiter like this 
+For the sake of not rewheeling the invention, we can just install the Flask Limiter extension. The simplest setup (yoinked from the [documentation](https://flask-limiter.readthedocs.io/en/stable/)) is enough for this MP.
+
+We setup the limiter like this
 
 ```python
 limiter = Limiter(
@@ -216,6 +236,7 @@ def login():
 ```
 
 For the `posts` endpoint, we can do something like this
+
 ```python
 @limiter.limit("2/second")
 def posts():
@@ -230,7 +251,7 @@ When a user reaches the rate limit, they will get these errors and won’t be ab
 
 {{< figure src="MP3 writeup-20240501071136899.webp" alt="rate limit error" >}}
 
-To make this even more interesting, we can check if this actually works using other devices. Unfortunately, using `flask run` won’t allow other devices to connect to our server, even if we expose port 5000 in our Firewall. Although this is [not recommended](https://flask.palletsprojects.com/en/3.0.x/quickstart/#public-server), we can just simply run flask with `flask run --host=0.0.0.0` while still exposing port 5000 in our Firewall. 
+To make this even more interesting, we can check if this actually works using other devices. Unfortunately, using `flask run` won’t allow other devices to connect to our server, even if we expose port 5000 in our Firewall. Although this is [not recommended](https://flask.palletsprojects.com/en/3.0.x/quickstart/#public-server), we can just simply run flask with `flask run --host=0.0.0.0` while still exposing port 5000 in our Firewall.
 
 I'm using my phone to test this.
 
@@ -240,20 +261,18 @@ I'm using my phone to test this.
 
 {{< figure src="emploice.png" alt="emploice" >}}
 
-So what have we learned? 
+So what have we learned?
 
-We learned to clean our inputs. And, well, use CSRF tokens. 
+We learned to clean our inputs. And, well, use CSRF tokens.
 
 Most of the fixes are just sanitization with extra steps.
 
-Don't be like 2014 TweetDeck that forgot to do this. 
+Don't be like 2014 TweetDeck that forgot to do this.
 
 {{< youtube zv0kZKC6GAM>}}
 
-Or that one University portal that still doesn't do this (yes, we're all looking at you). 
+Or that one University portal that still doesn't do this (yes, we're all looking at you).
 
 Or that other University that just got their employees' salaries leaked.
 
 {{< figure src="ctu_leaked.png" alt="CTU leak" >}}
-
-
